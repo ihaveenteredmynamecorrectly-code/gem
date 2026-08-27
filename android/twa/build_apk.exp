@@ -1,0 +1,41 @@
+#!/usr/bin/expect -f
+# Drives the interactive `bubblewrap build` prompts via a pseudo-TTY.
+set timeout -1
+log_user 1
+
+set env(ANDROID_HOME) "/opt/android-sdk"
+set env(JAVA_HOME) "/usr/lib/jvm/java-21-openjdk-amd64"
+set env(BUBBLEWRAP_KEYSTORE_PASSWORD) "android"
+set env(BUBBLEWRAP_KEY_PASSWORD) "android"
+set env(PATH) "/opt/android-sdk/cmdline-tools/latest/bin:/opt/android-sdk/platform-tools:/usr/local/bin:/usr/bin:/bin"
+
+spawn npx --yes @bubblewrap/cli build
+# cwd is set by the caller via `cd` before running expect
+
+# "No checksum file was found ... would you like to regenerate your project?"
+expect {
+    "regenerate your" { send "Yes\r" }
+    timeout { puts "TIMEOUT waiting for checksum prompt"; exit 1 }
+}
+
+# "versionName for the new App version:" (only on first regenerate)
+expect {
+    "versionName for the new App version" { send "1.0.0\r" }
+    "Password for the Key Store" { }
+    "Building App" { }
+    "Apk" { }
+    timeout { puts "TIMEOUT waiting for versionName/password"; }
+}
+
+# If the versionName prompt appeared, passwords are env-driven so no prompt follows.
+# Just wait for completion.
+expect {
+    eof { puts "\n=== BUILD PROCESS ENDED ===" }
+    "Apk" { puts "\n=== APK step ===" }
+}
+
+# Drain remaining output until the process exits.
+expect {
+    eof { puts "\n=== DONE ===" }
+    timeout { puts "\n=== TIMEOUT ===" }
+}

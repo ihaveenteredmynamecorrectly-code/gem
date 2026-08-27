@@ -1,0 +1,37 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Android signing keystore & build artifacts
+android/*.keystore
+android/*.jks
+android/keystore.properties
+android/twa/.gradle/
+android/twa/build/
+android/twa/app/
+android/twa/gradle/
+android/twa/gradlew
+android/twa/gradlew.bat
+android/twa/gradle-wrapper.jar
+android/twa/gradle-wrapper.properties
+android/twa/manifest-checksum.txt
+android/twa/*.apk
+android/twa/*.aab
+android/twa/*.idsig
+*.apk
+*.aab
+*.idsig
+
+# OS / editor
+.DS_Store
+*.swp
+.vscode/
+.idea/

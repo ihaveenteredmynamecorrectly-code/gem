@@ -1,0 +1,43 @@
+{
+  "packageId": "dev.allhands.gemini_chat",
+  "host": "work-1-rrqnqpufphzbbshp.prod-runtime.all-hands.dev",
+  "name": "Gemini Chat",
+  "launcherName": "Gemini Chat",
+  "display": "standalone",
+  "themeColor": "#0B0F14",
+  "themeColorDark": "#000000",
+  "navigationColor": "#0B0F14",
+  "navigationColorDark": "#000000",
+  "navigationDividerColor": "#000000",
+  "navigationDividerColorDark": "#000000",
+  "backgroundColor": "#0B0F14",
+  "enableNotifications": false,
+  "startUrl": "/",
+  "iconUrl": "https://work-1-rrqnqpufphzbbshp.prod-runtime.all-hands.dev/static/icon-512.png",
+  "maskableIconUrl": "https://work-1-rrqnqpufphzbbshp.prod-runtime.all-hands.dev/static/icon-maskable-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "../gemini-chat.keystore",
+    "alias": "gemini-chat"
+  },
+  "appVersionName": "1.0.0",
+  "appVersionCode": 2,
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://work-1-rrqnqpufphzbbshp.prod-runtime.all-hands.dev/static/manifest.webmanifest",
+  "fallbackType": "customtabs",
+  "features": [],
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "minSdkVersion": 21,
+  "orientation": "default",
+  "fingerprints": [],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": [],
+  "displayOverride": [],
+  "appVersion": "1.0.0"
+}
