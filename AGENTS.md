@@ -43,20 +43,24 @@ GEMINI_API_KEY=... pytest -q   # hits the real API; skipped without a key
 
 ## APK / installable app
 The app ships as a **PWA** (manifest + service worker + icons in `app/static/`)
-**and** a signed **Android APK** built via Bubblewrap (Trusted Web Activity).
+**and** a signed **Android APK** built as a **custom WebView app**
+(`android/webview-app/`), NOT a Bubblewrap TWA.
 
-**Key design decision**: the APK is a TWA that wraps the live HTTPS site. The
-Gemini API key stays server-side (in `.env`) — it is **never** embedded in the
-APK. The APK only works when the backend is reachable at the host baked into
-`twa-manifest.json`.
+**Key design decision**: the live UI is a bring-your-own-key (BYOK) web app on
+GitHub Pages (no embedded key in the public repo). The APK wraps that site in a
+WebView and injects the Gemini API key into the page's `localStorage` on page
+load. The key is embedded **AES-GCM encrypted** (ciphertext + 256-bit key
+constant live in the APK's `classes.dex`); it is decrypted at runtime by
+`MainActivity` and never stored in plaintext in the APK or the repo. Because both
+ciphertext and key ship client-side, this is obfuscation, not true secrecy —
+the real secret is never committed.
 
-Build artifacts (all gitignored):
-- `gemini-chat.apk` — signed APK at project root (package `dev.allhands.gemini_chat`)
-- `android/twa/` — Bubblewrap TWA project (`twa-manifest.json`, Gradle project)
-- `android/twa/build_apk.exp` — `expect` script that drives Bubblewrap's
-  interactive prompts non-interactively (committed; the only tracked file in `android/`)
+Build artifacts (all gitignored except the committed source + signed APK):
+- `gemini-chat.apk` — signed APK at project root (package `dev.allhands.gemini_chat`,
+  force-added so it's downloadable via the raw GitHub URL)
+- `android/webview-app/` — source Gradle project (committed): `MainActivity.java`,
+  `build.gradle`, manifest, theme, resources, gradle wrapper
 - `android/gemini-chat.keystore` — signing key (password `android`, gitignored)
-- `android/twa/app-release-signed.apk`, `app-release-bundle.aab` — build outputs
 
 Toolchain installed in this sandbox:
 - JDK 21 (`/usr/lib/jvm/java-21-openjdk-amd64`)
