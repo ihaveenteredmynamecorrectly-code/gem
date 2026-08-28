@@ -85,6 +85,12 @@ async function generateWithModel(model, body) {
 
     let msg = `HTTP ${resp.status}`;
     try { const j = await resp.json(); msg = j?.error?.message || msg; } catch {}
+
+    // Auth errors are NOT transient — never retry, fail fast with a clear note.
+    if (resp.status === 401 || resp.status === 403) {
+      throw { authError: true, status: resp.status, message: msg };
+    }
+
     if (attempt > MAX_RETRIES) throw new Error(`model ${model}: ${msg}`);
     await sleep(backoff(attempt) * 1000);
   }
@@ -108,9 +114,10 @@ async function generate(prompt, { system, temperature = 0.7, max_tokens = 1024 }
       return await generateWithModel(model, body);
     } catch (e) {
       lastErr = e;
+      // Auth errors affect all models (same key) — don't bother trying the rest.
+      if (e?.authError) break;
       if (e?.rateLimited) continue;
       if (e?.modelUnavailable) continue;
-      // network/transport error — try next model
       continue;
     }
   }

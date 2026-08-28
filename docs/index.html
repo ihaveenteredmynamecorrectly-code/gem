@@ -247,7 +247,11 @@ async function send() {
     typing.wrap.remove();
     const eb = addTurn("assistant", "");
     eb.b.className = "bubble err";
-    if (e?.rateLimited || e?.allDead) {
+    if (e?.authError) {
+      eb.b.textContent = "The Gemini API key is invalid or expired (401). " + (e.message || "");
+      setStatus("err", "key invalid");
+      setModelLabel("API key invalid/expired", true);
+    } else if (e?.rateLimited || e?.allDead) {
       eb.b.textContent = "Rate limited — all models cooling down. Wait ~60s and try again.";
       setStatus("err", "rate limited");
       setModelLabel("Rate limited — wait ~60s", true);
