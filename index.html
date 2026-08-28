@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="theme-color" content="#0b0f14" />
+<meta name="description" content="Chat with Gemini on Google's free tier, with automatic rate-limit handling." />
+<title>Gemini Free-Tier Chat</title>
+<link rel="manifest" href="./manifest.webmanifest" />
+<link rel="icon" type="image/png" href="./icons/favicon.png" />
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+<link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png" />
+<link rel="icon" type="image/png" sizes="512x512" href="./icons/icon-512.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0b0f14;
+    --bg-elev: #11161d;
+    --bg-elev2: #161c25;
+    --border: #1f2733;
+    --border-strong: #2a3340;
+    --text: #e6edf3;
+    --text-dim: #8b97a5;
+    --text-faint: #5c6573;
+    --accent: #4f8cff;
+    --accent-soft: rgba(79, 140, 255, 0.14);
+    --user: #2b3a55;
+    --ok: #3fb950;
+    --warn: #d29922;
+    --err: #f85149;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: radial-gradient(1200px 600px at 80% -10%, #16202e 0%, transparent 60%), var(--bg);
+    color: var(--text);
+    display: flex; flex-direction: column; min-height: 100vh;
+  }
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 22px; border-bottom: 1px solid var(--border);
+    background: rgba(11,15,20,0.7); backdrop-filter: blur(8px);
+    position: sticky; top: 0; z-index: 10;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .logo { width: 34px; height: 34px; border-radius: 10px;
+    background: conic-gradient(from 210deg, #4f8cff, #8b5cf6, #ec4899, #4f8cff);
+    box-shadow: 0 0 18px rgba(79,140,255,0.35); }
+  .brand h1 { font-size: 16px; margin: 0; font-weight: 600; letter-spacing: -0.01em; }
+  .brand .sub { font-size: 12px; color: var(--text-faint); font-weight: 400; }
+  .status { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-dim);
+    padding: 6px 12px; border: 1px solid var(--border); border-radius: 999px; background: var(--bg-elev); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-faint); }
+  .dot.ok { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+  .dot.warn { background: var(--warn); box-shadow: 0 0 8px var(--warn); }
+  .dot.err { background: var(--err); box-shadow: 0 0 8px var(--err); }
+  .dot.pulse { animation: pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+  main { flex: 1; overflow-y: auto; padding: 28px 22px 10px; scroll-behavior: smooth; }
+  .thread { max-width: 780px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+  .empty { text-align: center; color: var(--text-faint); margin-top: 8vh; }
+  .empty h2 { font-size: 22px; color: var(--text-dim); font-weight: 600; margin: 0 0 8px; }
+  .empty p { font-size: 14px; margin: 0; line-height: 1.6; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 18px; }
+  .chip { font-size: 13px; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--border-strong);
+    background: var(--bg-elev); color: var(--text-dim); cursor: pointer; transition: all .15s; }
+  .chip:hover { color: var(--text); border-color: var(--accent); background: var(--accent-soft); }
+  .msg { display: flex; flex-direction: column; gap: 6px; }
+  .msg .meta { font-size: 11px; color: var(--text-faint); display: flex; gap: 10px; align-items: center; }
+  .bubble { padding: 14px 16px; border-radius: var(--radius); line-height: 1.6; font-size: 15px;
+    white-space: pre-wrap; word-wrap: break-word; max-width: 100%; }
+  .msg.user .bubble { background: var(--user); border: 1px solid #36486b; align-self: flex-end; border-bottom-right-radius: 5px; }
+  .msg.assistant .bubble { background: var(--bg-elev); border: 1px solid var(--border); align-self: flex-start; border-bottom-left-radius: 5px; }
+  .bubble.err { border-color: var(--err); color: #ffd0ce; background: rgba(248,81,73,0.08); }
+  .bubble .tag { font-family: 'JetBrains Mono', monospace; font-size: 10px; }
+  .thinking { display: inline-flex; gap: 4px; align-items: center; }
+  .thinking span { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: bounce 1s infinite; }
+  .thinking span:nth-child(2){ animation-delay: .15s; }
+  .thinking span:nth-child(3){ animation-delay: .3s; }
+  @keyframes bounce { 0%,80%,100%{transform:translateY(0);opacity:.4} 40%{transform:translateY(-4px);opacity:1} }
+  footer { border-top: 1px solid var(--border); background: rgba(11,15,20,0.7); backdrop-filter: blur(8px); padding: 14px 22px 18px; }
+  .composer { max-width: 780px; margin: 0 auto; }
+  .row { display: flex; gap: 10px; align-items: flex-end; }
+  .input-wrap { flex: 1; position: relative; }
+  textarea { width: 100%; resize: none; max-height: 160px; min-height: 52px; padding: 14px 16px; border-radius: var(--radius);
+    background: var(--bg-elev); border: 1px solid var(--border-strong); color: var(--text); font: inherit; font-size: 15px;
+    line-height: 1.5; transition: border-color .15s, box-shadow .15s; }
+  textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .opts { display: flex; gap: 10px; margin-top: 10px; align-items: center; flex-wrap: wrap; }
+  .field { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-dim); }
+  .field input[type="range"] { width: 100px; }
+  .field input[type="number"] { width: 70px; padding: 5px 8px; border-radius: 8px; background: var(--bg-elev);
+    border: 1px solid var(--border-strong); color: var(--text); font: inherit; font-size: 12px; }
+  .details { flex: 1; }
+  details summary { cursor: pointer; font-size: 12px; color: var(--text-faint); list-style: none; }
+  details summary::-webkit-details-marker { display: none; }
+  details summary::before { content: "▸ "; }
+  details[open] summary::before { content: "▾ "; }
+  .syswrap { margin-top: 8px; }
+  .syswrap textarea { min-height: 60px; font-size: 13px; }
+  button.send { padding: 14px 20px; border-radius: var(--radius); border: none; cursor: pointer;
+    background: linear-gradient(135deg, #4f8cff, #6366f1); color: white; font-weight: 600; font-size: 14px;
+    display: inline-flex; align-items: center; gap: 8px; transition: transform .1s, opacity .15s; }
+  button.send:hover:not(:disabled) { transform: translateY(-1px); }
+  button.send:disabled { opacity: .45; cursor: not-allowed; }
+  .hint { font-size: 11px; color: var(--text-faint); margin-top: 10px; text-align: center; }
+  .settings-btn { background: var(--bg-elev); border: 1px solid var(--border-strong); color: var(--text-dim);
+    width: 34px; height: 34px; border-radius: 10px; font-size: 16px; cursor: pointer; margin-left: 10px;
+    display: inline-flex; align-items: center; justify-content: center; transition: all .15s; }
+  .settings-btn:hover { color: var(--text); border-color: var(--accent); }
+  .settings-btn.has-key { color: var(--ok); border-color: var(--ok); }
+  .settings-btn.no-key { color: var(--warn); border-color: var(--warn); animation: pulse 1.6s ease-in-out infinite; }
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+    display: flex; align-items: center; justify-content: center; z-index: 50; }
+  .modal-overlay[hidden] { display: none; }
+  .modal { background: var(--bg-elev); border: 1px solid var(--border-strong); border-radius: 16px;
+    width: min(92vw, 460px); padding: 22px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+  .modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .modal-head h3 { margin: 0; font-size: 17px; font-weight: 600; }
+  .modal-x { background: none; border: none; color: var(--text-dim); font-size: 24px; cursor: pointer; line-height: 1; }
+  .modal-x:hover { color: var(--text); }
+  .key-input { width: 100%; padding: 12px 14px; border-radius: 10px; background: var(--bg);
+    border: 1px solid var(--border-strong); color: var(--text); font: inherit; font-size: 14px;
+    font-family: 'JetBrains Mono', monospace; }
+  .key-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .key-hint { font-size: 12px; color: var(--text-faint); line-height: 1.5; margin: 12px 0 16px; }
+  .key-hint a { color: var(--accent); }
+  .modal-actions { display: flex; gap: 10px; }
+  .modal-actions .chip { padding: 10px 16px; }
+  .modal-actions .chip:first-child { border-color: var(--accent); background: var(--accent-soft); color: var(--text); }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="logo"></div>
+    <div>
+      <h1>Gemini Free-Tier Chat</h1>
+      <div class="sub" id="model-sub">ready</div>
+    </div>
+  </div>
+  <div class="status" id="status"><span class="dot ok" id="status-dot"></span><span id="status-text">ready</span></div>
+  <button class="settings-btn" id="settings-btn" title="Settings" aria-label="Settings">⚙</button>
+</header>
+
+<div class="modal-overlay" id="settings-modal" hidden>
+  <div class="modal">
+    <div class="modal-head">
+      <h3>Settings</h3>
+      <button class="modal-x" id="settings-close" aria-label="Close">×</button>
+    </div>
+    <label class="field" style="display:block;margin:6px 0 4px;">Gemini API key</label>
+    <input type="password" id="key-input" class="key-input" placeholder="Paste your Gemini API key here" autocomplete="off" spellcheck="false" />
+    <div class="key-hint">Your key is stored only on this device (localStorage). It is never sent to any server except Google's Gemini API. Get a free key at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>. If your key stops working (401), paste a fresh one here.</div>
+    <div class="modal-actions">
+      <button class="chip" id="settings-save">Save key</button>
+      <button class="chip" id="settings-clear">Clear key</button>
+    </div>
+  </div>
+</div>
+
+<main>
+  <div class="thread" id="thread">
+    <div class="empty" id="empty">
+      <h2>Ask Gemini anything</h2>
+      <p>Running on Google's <strong>free tier</strong> using an always-free flash-lite model.<br/>
+         Add your Gemini API key in <strong>Settings (⚙)</strong> to start chatting.<br/>
+         Rate-limited? The app handles retries automatically.</p>
+      <div class="chips" id="chips"></div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="composer">
+    <div class="row">
+      <div class="input-wrap">
+        <textarea id="prompt" placeholder="Type your message…  (Enter to send, Shift+Enter for newline)" rows="1"></textarea>
+      </div>
+      <button class="send" id="send">Send <span>↵</span></button>
+    </div>
+    <div class="opts">
+      <label class="field">temp <input type="range" id="temp" min="0" max="2" step="0.1" value="0.7"/><span id="tempv">0.7</span></label>
+      <label class="field">max tokens <input type="number" id="maxtok" min="16" max="8192" value="1024"/></label>
+      <div class="details">
+        <details>
+          <summary>system instruction</summary>
+          <div class="syswrap"><textarea id="system" placeholder="Optional: set the assistant's persona / rules…"></textarea></div>
+        </details>
+      </div>
+    </div>
+    <div class="hint">Free tier tip: if you hit a rate limit, the app backs off and retries automatically. Wait ~60s between bursts.</div>
+  </div>
+</footer>
+
+<script type="module">
+import { generate, MODELS, getApiKey, setApiKey, hasApiKey } from "./gemini.js";
+
+const $ = (id) => document.getElementById(id);
+const thread = $("thread");
+const promptEl = $("prompt");
+const sendBtn = $("send");
+const statusDot = $("status-dot");
+const statusText = $("status-text");
+const modelSub = $("model-sub");
+
+const examples = [
+  "Explain quantum entanglement like I'm 12.",
+  "Write a haiku about the ocean at dusk.",
+  "Give me 5 dinner ideas using only chickpeas.",
+  "Debug: why is my Python list 'None' after .sort()?",
+  "Draft a friendly out-of-office email.",
+];
+
+function setStatus(kind, text) {
+  statusDot.className = "dot pulse " + (kind || "");
+  statusText.textContent = text;
+}
+function setModelLabel(text, isErr) {
+  modelSub.textContent = text;
+  modelSub.style.color = isErr ? "var(--err)" : "";
+}
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+}
+
+function bubble(cls) {
+  const wrap = document.createElement("div");
+  wrap.className = "msg " + cls;
+  const meta = document.createElement("div");
+  meta.className = "meta";
+  const b = document.createElement("div");
+  b.className = "bubble";
+  wrap.appendChild(meta); wrap.appendChild(b);
+  return { wrap, meta, b };
+}
+
+function addTurn(role, text, opts) {
+  const { wrap, meta, b } = bubble(role);
+  b.textContent = text;
+  if (role === "assistant" && opts && opts.model) {
+    meta.innerHTML = `<span class="tag">${escapeHtml(opts.model)}</span>` + (opts.tokens ? ` <span class="tag">${opts.tokens} tok</span>` : "");
+  }
+  thread.appendChild(wrap);
+  window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+  return { wrap, b };
+}
+
+function clearEmpty() { const e = $("empty"); if (e) e.remove(); }
+
+setModelLabel("models: " + MODELS.join(" | "));
+
+async function send() {
+  const prompt = promptEl.value.trim();
+  if (!prompt) return;
+  if (!hasApiKey()) { openSettings(); return; }
+  clearEmpty();
+  addTurn("user", prompt);
+  promptEl.value = "";
+  autosize();
+
+  const typing = bubble("assistant");
+  typing.b.innerHTML = `<div class="thinking"><span></span><span></span><span></span></div>`;
+  typing.meta.innerHTML = '<span class="tag">thinking…</span>';
+  thread.appendChild(typing.wrap);
+  window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+
+  sendBtn.disabled = true;
+  setStatus("warn", "working…");
+
+  const opts = {
+    temperature: parseFloat($("temp").value),
+    max_tokens: parseInt($("maxtok").value, 10),
+  };
+  const sys = $("system").value.trim();
+  if (sys) opts.system = sys;
+
+  try {
+    const r = await generate(prompt, opts);
+    typing.wrap.remove();
+    addTurn("assistant", r.text, { model: r.model, tokens: r.tokens });
+    setStatus("ok", "ready");
+    if (r.model) setModelLabel("model: " + r.model);
+  } catch (e) {
+    typing.wrap.remove();
+    const eb = addTurn("assistant", "");
+    eb.b.className = "bubble err";
+    if (e?.noKey) {
+      eb.b.textContent = "No API key set. Tap ⚙ Settings and paste your Gemini key.";
+      setStatus("warn", "no key");
+      openSettings();
+    } else if (e?.authError) {
+      eb.b.textContent = "The Gemini API key is invalid or expired (401). Open Settings and paste a fresh key. " + (e.message || "");
+      setStatus("err", "key invalid");
+      setModelLabel("API key invalid/expired", true);
+      openSettings();
+    } else if (e?.rateLimited || e?.allDead) {
+      eb.b.textContent = "Rate limited — all models cooling down. Wait ~60s and try again.";
+      setStatus("err", "rate limited");
+      setModelLabel("Rate limited — wait ~60s", true);
+    } else {
+      eb.b.textContent = (e && e.message) ? e.message : String(e);
+      setStatus("err", "error");
+    }
+  } finally {
+    sendBtn.disabled = false;
+    promptEl.focus();
+  }
+}
+
+function autosize() {
+  promptEl.style.height = "auto";
+  promptEl.style.height = Math.min(promptEl.scrollHeight, 160) + "px";
+}
+
+promptEl.addEventListener("input", autosize);
+promptEl.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+});
+sendBtn.addEventListener("click", send);
+$("temp").addEventListener("input", (e) => $("tempv").textContent = e.target.value);
+
+const chips = $("chips");
+examples.forEach((ex) => {
+  const c = document.createElement("div");
+  c.className = "chip"; c.textContent = ex;
+  c.addEventListener("click", () => { promptEl.value = ex; autosize(); promptEl.focus(); });
+  chips.appendChild(c);
+});
+
+autosize();
+
+// ---- Settings / API key ----
+const settingsBtn = $("settings-btn");
+const settingsModal = $("settings-modal");
+const keyInput = $("key-input");
+
+function refreshKeyState() {
+  if (hasApiKey()) {
+    settingsBtn.className = "settings-btn has-key";
+    settingsBtn.title = "Settings — API key set";
+    setStatus("ok", "ready");
+  } else {
+    settingsBtn.className = "settings-btn no-key";
+    settingsBtn.title = "Settings — add your API key";
+    setStatus("warn", "no key");
+  }
+}
+function openSettings() {
+  keyInput.value = getApiKey();
+  settingsModal.hidden = false;
+  setTimeout(() => keyInput.focus(), 0);
+}
+function closeSettings() { settingsModal.hidden = true; promptEl.focus(); }
+settingsBtn.addEventListener("click", openSettings);
+$("settings-close").addEventListener("click", closeSettings);
+settingsModal.addEventListener("click", (e) => { if (e.target === settingsModal) closeSettings(); });
+$("settings-save").addEventListener("click", () => {
+  const k = keyInput.value.trim();
+  setApiKey(k);
+  refreshKeyState();
+  closeSettings();
+});
+$("settings-clear").addEventListener("click", () => {
+  setApiKey(""); keyInput.value = ""; refreshKeyState();
+});
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !settingsModal.hidden) closeSettings(); });
+
+refreshKeyState();
+if (!hasApiKey()) openSettings();
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").catch((e) => console.warn("SW registration failed:", e));
+  });
+}
+
+let deferredPrompt = null;
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  const b = document.createElement("button");
+  b.className = "chip";
+  b.textContent = "⬇ Install app";
+  b.style.cssText = "position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:20;border-color:var(--accent);background:var(--accent-soft);color:var(--text)";
+  b.onclick = async () => { b.remove(); deferredPrompt.prompt(); await deferredPrompt.userChoice; deferredPrompt = null; };
+  document.body.appendChild(b);
+});
+</script>
+</body>
+</html>

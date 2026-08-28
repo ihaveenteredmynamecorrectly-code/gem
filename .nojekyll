@@ -1,0 +1,1 @@
+# Disable Jekyll so all files (including .well-known) are served as-is.
