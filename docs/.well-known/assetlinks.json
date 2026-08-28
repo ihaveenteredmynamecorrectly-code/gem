@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "dev.allhands.gemini_chat",
+      "sha256_cert_fingerprints": [
+        "98:D0:E5:3F:99:6E:0C:73:0D:53:93:95:A2:AF:15:EF:51:B8:F2:AE:81:EF:30:06:EC:29:F8:DE:6F:E7:1C:06"
+      ]
+    }
+  }
+]
