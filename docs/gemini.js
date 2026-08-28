@@ -5,7 +5,7 @@
 // NOTE (option 1 tradeoff): the API key is embedded here. There is no backend,
 // so the key is visible to anyone who opens the page source. This is acceptable
 // for a free-tier personal key; see the README for the server-side alternative.
-const GEMINI_API_KEY = "AQ.Ab8RN6K9WX5bmydCBFWdTyCrd9g0HkkbT4HopcGi6KCi8OJCfQ";
+const GEMINI_API_KEY = "AQ.Ab8RN6K-kjFm6ZKXeXmPpx-JpHWnmU5qJlKzryITIXxUtTxkcA";
 const API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 
 const MODELS = ["gemini-flash-lite-latest", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite"];
