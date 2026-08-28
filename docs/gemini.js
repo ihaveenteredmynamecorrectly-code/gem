@@ -2,13 +2,18 @@
 // Mirrors app/gemini_client.py: 429 exponential backoff (jittered, respects
 // Retry-After), and automatic fallback through a model alias list.
 //
-// NOTE (option 1 tradeoff): the API key is embedded here. There is no backend,
-// so the key is visible to anyone who opens the page source. This is acceptable
-// for a free-tier personal key; see the README for the server-side alternative.
-const GEMINI_API_KEY = "AQ.Ab8RN6K-kjFm6ZKXeXmPpx-JpHWnmU5qJlKzryITIXxUtTxkcA";
+// Bring-your-own-key: the API key is NOT embedded. The user enters it once in
+// the Settings UI; it is stored in localStorage on their device. This keeps the
+// key out of the (public) repo and lets the user rotate an expired free-tier key
+// without a redeploy.
+const KEY_STORAGE = "gemini_api_key";
+function getApiKey() { return (localStorage.getItem(KEY_STORAGE) || "").trim(); }
+function hasApiKey() { return getApiKey().length > 0; }
+function setApiKey(k) { localStorage.setItem(KEY_STORAGE, (k || "").trim()); }
+
 const API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 
-const MODELS = ["gemini-flash-lite-latest", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite"];
+const MODELS = ["gemma-4-31b-it", "gemma-4-26b-a4b-it", "gemini-flash-lite-latest", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite"];
 const MAX_RETRIES = 5;
 const BASE_BACKOFF = 1.5;
 const MAX_BACKOFF = 60;
@@ -40,7 +45,9 @@ function errMessage(resp) {
 }
 
 async function generateWithModel(model, body) {
-  const url = `${API_BASE}/${model}:generateContent?key=${encodeURIComponent(GEMINI_API_KEY)}`;
+  const key = getApiKey();
+  if (!key) throw { noKey: true };
+  const url = `${API_BASE}/${model}:generateContent?key=${encodeURIComponent(key)}`;
   let attempt = 0;
   while (true) {
     attempt++;
@@ -124,4 +131,4 @@ async function generate(prompt, { system, temperature = 0.7, max_tokens = 1024 }
   throw lastErr || { allDead: true };
 }
 
-export { generate, MODELS, activeModel };
+export { generate, MODELS, activeModel, getApiKey, setApiKey, hasApiKey };

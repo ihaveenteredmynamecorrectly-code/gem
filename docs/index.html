@@ -108,6 +108,30 @@
   button.send:hover:not(:disabled) { transform: translateY(-1px); }
   button.send:disabled { opacity: .45; cursor: not-allowed; }
   .hint { font-size: 11px; color: var(--text-faint); margin-top: 10px; text-align: center; }
+  .settings-btn { background: var(--bg-elev); border: 1px solid var(--border-strong); color: var(--text-dim);
+    width: 34px; height: 34px; border-radius: 10px; font-size: 16px; cursor: pointer; margin-left: 10px;
+    display: inline-flex; align-items: center; justify-content: center; transition: all .15s; }
+  .settings-btn:hover { color: var(--text); border-color: var(--accent); }
+  .settings-btn.has-key { color: var(--ok); border-color: var(--ok); }
+  .settings-btn.no-key { color: var(--warn); border-color: var(--warn); animation: pulse 1.6s ease-in-out infinite; }
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+    display: flex; align-items: center; justify-content: center; z-index: 50; }
+  .modal-overlay[hidden] { display: none; }
+  .modal { background: var(--bg-elev); border: 1px solid var(--border-strong); border-radius: 16px;
+    width: min(92vw, 460px); padding: 22px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+  .modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .modal-head h3 { margin: 0; font-size: 17px; font-weight: 600; }
+  .modal-x { background: none; border: none; color: var(--text-dim); font-size: 24px; cursor: pointer; line-height: 1; }
+  .modal-x:hover { color: var(--text); }
+  .key-input { width: 100%; padding: 12px 14px; border-radius: 10px; background: var(--bg);
+    border: 1px solid var(--border-strong); color: var(--text); font: inherit; font-size: 14px;
+    font-family: 'JetBrains Mono', monospace; }
+  .key-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .key-hint { font-size: 12px; color: var(--text-faint); line-height: 1.5; margin: 12px 0 16px; }
+  .key-hint a { color: var(--accent); }
+  .modal-actions { display: flex; gap: 10px; }
+  .modal-actions .chip { padding: 10px 16px; }
+  .modal-actions .chip:first-child { border-color: var(--accent); background: var(--accent-soft); color: var(--text); }
 </style>
 </head>
 <body>
@@ -120,14 +144,32 @@
     </div>
   </div>
   <div class="status" id="status"><span class="dot ok" id="status-dot"></span><span id="status-text">ready</span></div>
+  <button class="settings-btn" id="settings-btn" title="Settings" aria-label="Settings">⚙</button>
 </header>
+
+<div class="modal-overlay" id="settings-modal" hidden>
+  <div class="modal">
+    <div class="modal-head">
+      <h3>Settings</h3>
+      <button class="modal-x" id="settings-close" aria-label="Close">×</button>
+    </div>
+    <label class="field" style="display:block;margin:6px 0 4px;">Gemini API key</label>
+    <input type="password" id="key-input" class="key-input" placeholder="Paste your Gemini API key here" autocomplete="off" spellcheck="false" />
+    <div class="key-hint">Your key is stored only on this device (localStorage). It is never sent to any server except Google's Gemini API. Get a free key at <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>. If your key stops working (401), paste a fresh one here.</div>
+    <div class="modal-actions">
+      <button class="chip" id="settings-save">Save key</button>
+      <button class="chip" id="settings-clear">Clear key</button>
+    </div>
+  </div>
+</div>
 
 <main>
   <div class="thread" id="thread">
     <div class="empty" id="empty">
       <h2>Ask Gemini anything</h2>
       <p>Running on Google's <strong>free tier</strong> using an always-free flash-lite model.<br/>
-         It's rate-limited, so heavy bursts may be throttled — the app handles retries automatically.</p>
+         Add your Gemini API key in <strong>Settings (⚙)</strong> to start chatting.<br/>
+         Rate-limited? The app handles retries automatically.</p>
       <div class="chips" id="chips"></div>
     </div>
   </div>
@@ -156,7 +198,7 @@
 </footer>
 
 <script type="module">
-import { generate, MODELS } from "./gemini.js";
+import { generate, MODELS, getApiKey, setApiKey, hasApiKey } from "./gemini.js";
 
 const $ = (id) => document.getElementById(id);
 const thread = $("thread");
@@ -216,6 +258,7 @@ setModelLabel("models: " + MODELS.join(" | "));
 async function send() {
   const prompt = promptEl.value.trim();
   if (!prompt) return;
+  if (!hasApiKey()) { openSettings(); return; }
   clearEmpty();
   addTurn("user", prompt);
   promptEl.value = "";
@@ -247,10 +290,15 @@ async function send() {
     typing.wrap.remove();
     const eb = addTurn("assistant", "");
     eb.b.className = "bubble err";
-    if (e?.authError) {
-      eb.b.textContent = "The Gemini API key is invalid or expired (401). " + (e.message || "");
+    if (e?.noKey) {
+      eb.b.textContent = "No API key set. Tap ⚙ Settings and paste your Gemini key.";
+      setStatus("warn", "no key");
+      openSettings();
+    } else if (e?.authError) {
+      eb.b.textContent = "The Gemini API key is invalid or expired (401). Open Settings and paste a fresh key. " + (e.message || "");
       setStatus("err", "key invalid");
       setModelLabel("API key invalid/expired", true);
+      openSettings();
     } else if (e?.rateLimited || e?.allDead) {
       eb.b.textContent = "Rate limited — all models cooling down. Wait ~60s and try again.";
       setStatus("err", "rate limited");
@@ -286,6 +334,45 @@ examples.forEach((ex) => {
 });
 
 autosize();
+
+// ---- Settings / API key ----
+const settingsBtn = $("settings-btn");
+const settingsModal = $("settings-modal");
+const keyInput = $("key-input");
+
+function refreshKeyState() {
+  if (hasApiKey()) {
+    settingsBtn.className = "settings-btn has-key";
+    settingsBtn.title = "Settings — API key set";
+    setStatus("ok", "ready");
+  } else {
+    settingsBtn.className = "settings-btn no-key";
+    settingsBtn.title = "Settings — add your API key";
+    setStatus("warn", "no key");
+  }
+}
+function openSettings() {
+  keyInput.value = getApiKey();
+  settingsModal.hidden = false;
+  setTimeout(() => keyInput.focus(), 0);
+}
+function closeSettings() { settingsModal.hidden = true; promptEl.focus(); }
+settingsBtn.addEventListener("click", openSettings);
+$("settings-close").addEventListener("click", closeSettings);
+settingsModal.addEventListener("click", (e) => { if (e.target === settingsModal) closeSettings(); });
+$("settings-save").addEventListener("click", () => {
+  const k = keyInput.value.trim();
+  setApiKey(k);
+  refreshKeyState();
+  closeSettings();
+});
+$("settings-clear").addEventListener("click", () => {
+  setApiKey(""); keyInput.value = ""; refreshKeyState();
+});
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !settingsModal.hidden) closeSettings(); });
+
+refreshKeyState();
+if (!hasApiKey()) openSettings();
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
