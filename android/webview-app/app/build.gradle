@@ -1,0 +1,40 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'dev.allhands.gemini_chat'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "dev.allhands.gemini_chat"
+        minSdk 24
+        targetSdk 34
+        versionCode 3
+        versionName "1.1.0"
+    }
+
+    signingConfigs {
+        release {
+            storeFile file("../../gemini-chat.keystore")
+            storePassword "android"
+            keyAlias "gemini-chat"
+            keyPassword "android"
+        }
+    }
+
+    buildTypes {
+        release {
+            signingConfig signingConfigs.release
+            minifyEnabled false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+}

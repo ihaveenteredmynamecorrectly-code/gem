@@ -26,6 +26,12 @@ android/twa/manifest-checksum.txt
 android/twa/*.apk
 android/twa/*.aab
 android/twa/*.idsig
+# Custom WebView app build artifacts (source IS committed; build outputs are not)
+android/webview-app/.gradle/
+android/webview-app/build/
+android/webview-app/app/build/
+android/webview-app/local.properties
+android/webview-app/gemini-chat.keystore
 *.apk
 *.aab
 *.idsig
